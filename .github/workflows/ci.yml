@@ -46,7 +46,7 @@ jobs:
       - name: Checkout last commit
         uses: actions/checkout@v4
         with:
-          submodules: true
+          submodules: recursive
           fetch-depth: 0
 
       - name: Fetch all tags
@@ -118,11 +118,25 @@ jobs:
           copy .\winsparkle\Release\WinSparkle.dll .\output\Win32\
           copy .\winsparkle\Release\WinSparkle.lib .\lib\
 
-      - name: Get Rime files
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          .\get-rime.ps1 -use dev
+      - name: Get librime revision
+        id: librime_rev
+        shell: bash
+        run: echo "commit=$(git rev-parse HEAD:librime)" >> $GITHUB_OUTPUT
+
+      # cached librime build trees (per-arch) keyed on the librime submodule
+      # commit and the patch contents
+      - name: Cache librime build
+        uses: actions/cache@v4
+        with:
+          path: |
+            librime\build
+            librime\deps\install
+            librime\dist
+          key: librime-${{ runner.os }}-${{ steps.librime_rev.outputs.commit }}-${{ hashFiles('patches/*.patch') }}
+
+      - name: Build librime from source
+        shell: cmd
+        run: .\build-rime.bat
 
       - name: Build data
         shell: pwsh
